@@ -2,7 +2,6 @@
 
 ### 2. Backend README (`prompt-vault-backend/README.md`)
 
-```markdown
 # PromptVault API
 
 A FastAPI backend handling data persistence, schema validation, and REST routing for the PromptVault application. 
@@ -22,11 +21,12 @@ A FastAPI backend handling data persistence, schema validation, and REST routing
 
 ## Local Setup
 
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/OmShetty26/prompt-vault-backend.git](https://github.com/OmShetty26/prompt-vault-backend.git)
-   cd prompt-vault-backend
-    ```
+1. Clone the [backend repository](https://github.com/OmShetty26/prompt-vault-backend.git):
+
+```bash
+git clone https://github.com/OmShetty26/prompt-vault-backend.git
+cd prompt-vault-backend
+```
 
 2. Create and activate a Python virtual environment:
     Windows:

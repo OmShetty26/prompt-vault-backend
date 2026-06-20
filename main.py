@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -24,8 +24,9 @@ app.add_middleware(
 )
 
 # Define the exact shape of the data
-class Prompt(BaseModel):
+class PromptCreate(BaseModel):
     title: str
+    category: str
     content: str
 
 @app.get("/")
@@ -43,6 +44,8 @@ async def get_prompts():
 
 # Create a POST route to receive new prompts
 @app.post("/api/prompts")
-async def create_prompt(new_prompt: Prompt):
+async def create_prompt(new_prompt: PromptCreate):
+    if new_prompt.title.strip() == "" or new_prompt.content.strip() == "":
+        raise HTTPException(400, "Title and Content cannot be empty!")
     print(f"Received a new prompt: {new_prompt.title}")
     return {'status': "Success", 'data': new_prompt}

@@ -30,22 +30,22 @@ class PromptCreate(BaseModel):
     content: str
 
 @app.get("/")
-async def root():
+def root():
     return {"message": "The PromptVault Engine is Online"}
 
 @app.get("/api/prompts")
-async def get_prompts():
-    # We are returning a hardcoded list of objects just to test React
-    mock_database = [
-        {"title": "Translate Python to JS", "category": "Code Generation", "content": "Translate this..."},
-        {"title": "Fix React Bug", "category": "Debugging & Refactoring", "content": "Find the error..."}
-    ]
-    return mock_database
+def get_prompts(db: Session = Depends(get_db)):
+    response = db.query(models.Prompt).all()
+    return response
 
 # Create a POST route to receive new prompts
 @app.post("/api/prompts")
-async def create_prompt(new_prompt: PromptCreate):
+def create_prompt(new_prompt: PromptCreate, db: Session = Depends(get_db)):
     if new_prompt.title.strip() == "" or new_prompt.content.strip() == "":
         raise HTTPException(400, "Title and Content cannot be empty!")
     print(f"Received a new prompt: {new_prompt.title}")
-    return {'status': "Success", 'data': new_prompt}
+    new_db_prompt = models.Prompt(title=new_prompt.title, category=new_prompt.category, content=new_prompt.content)
+    db.add(new_db_prompt)
+    db.commit()
+    db.refresh(new_db_prompt)
+    return {'status': "Success", 'data': new_db_prompt}

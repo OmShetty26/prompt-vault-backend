@@ -48,4 +48,27 @@ def create_prompt(new_prompt: PromptCreate, db: Session = Depends(get_db)):
     db.add(new_db_prompt)
     db.commit()
     db.refresh(new_db_prompt)
+    
     return {'status': "Success", 'data': new_db_prompt}
+
+# GET route to return data for a specific prompt id
+@app.get("/prompt/{prompt_id}")
+def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
+    response = db.query(models.Prompt).filter(models.Prompt.id == prompt_id).first()
+    return response
+
+# PUT route to modify exisiting data for a specific prompt id
+@app.put("/prompt/{prompt_id}")
+def modify_prompt(prompt_id: int, updated_prompt: PromptCreate, db: Session = Depends(get_db)):
+    db_prompt = db.query(models.Prompt).filter(models.Prompt.id == prompt_id).first()
+    if db_prompt:
+        db_prompt.title = updated_prompt.title
+        db_prompt.category = updated_prompt.category
+        db_prompt.content = updated_prompt.content
+        db.commit()
+        db.refresh(db_prompt)
+        return db_prompt
+    else:
+        raise HTTPException(404, "Prompt ID Not Found!")
+    
+

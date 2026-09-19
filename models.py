@@ -1,4 +1,11 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    false
+)
 from database import Base
 import datetime
 
@@ -11,3 +18,15 @@ class Prompt(Base):
     content = Column(String)
     # We add a timestamp so you can sort prompts by newest later!
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    is_pinned = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false()
+    )
+
+    last_opened_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )

@@ -56,7 +56,7 @@ def create_prompt(new_prompt: PromptCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_db_prompt)
     
-    return {'status': "Success", 'data': new_db_prompt}
+    return new_db_prompt
 
 # GET one prompt
 @app.get("/prompt/{prompt_id}")

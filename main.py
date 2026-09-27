@@ -1,12 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import models
+from schemas import *
 from database import engine, get_db
 from datetime import datetime, timezone
-
-models.Base.metadata.create_all(bind=engine)
+from security import hash_password
 
 app = FastAPI()
 
@@ -24,17 +23,6 @@ app.add_middleware(
     allow_headers=["*"],         # Allow all headers
 )
 
-# Define the exact shape of the data
-class PromptCreate(BaseModel):
-    title: str
-    category: str
-    content: str
-
-class PromptPinUpdate(BaseModel):
-    is_pinned: bool
-
-class PromptRenameUpdate(BaseModel):
-    title: str
 
 @app.get("/")
 def root():
@@ -49,7 +37,7 @@ def get_prompts(db: Session = Depends(get_db)):
 @app.post("/api/prompts")
 def create_prompt(new_prompt: PromptCreate, db: Session = Depends(get_db)):
     if new_prompt.title.strip() == "" or new_prompt.content.strip() == "":
-        raise HTTPException(400, "Title and Content cannot be empty!")
+        raise HTTPException(status_code = 400, detail = "Title and Content cannot be empty!")
     print(f"Received a new prompt: {new_prompt.title}")
     new_db_prompt = models.Prompt(title=new_prompt.title, category=new_prompt.category, content=new_prompt.content)
     db.add(new_db_prompt)
@@ -68,7 +56,7 @@ def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
     )
 
     if not db_prompt:
-        raise HTTPException(404, "Prompt ID Not Found!")
+        raise HTTPException(status_code = 404, detail = "Prompt ID Not Found!")
 
     return db_prompt
 
@@ -87,7 +75,7 @@ def update_prompt_pin(
     )
 
     if not db_prompt:
-        raise HTTPException(404, "Prompt ID Not Found!")
+        raise HTTPException(status_code = 404, detail = "Prompt ID Not Found!")
 
     db_prompt.is_pinned = update.is_pinned
 
@@ -110,7 +98,7 @@ def open_prompt(
     )
 
     if not db_prompt:
-        raise HTTPException(404, "Prompt ID Not Found!")
+        raise HTTPException(status_code = 404, detail = "Prompt ID Not Found!")
 
     db_prompt.last_opened_at = datetime.now(timezone.utc)
 
@@ -133,7 +121,7 @@ def delete_prompt(
     )
 
     if not db_prompt:
-        raise HTTPException(404, "Prompt ID Not Found!")
+        raise HTTPException(status_code = 404, detail = "Prompt ID Not Found!")
 
     db.delete(db_prompt)
     db.commit()
@@ -154,16 +142,16 @@ def rename_prompt(
 
     if not db_prompt:
         raise HTTPException(
-            404,
-            "Prompt ID Not Found!"
+            status_code = 404,
+            detail = "Prompt ID Not Found!"
         )
 
     new_title = update.title.strip()
 
     if not new_title:
         raise HTTPException(
-            400,
-            "Prompt title cannot be empty!"
+            status_code = 400,
+            detail = "Prompt title cannot be empty!"
         )
 
     db_prompt.title = new_title
@@ -172,3 +160,40 @@ def rename_prompt(
     db.refresh(db_prompt)
 
     return db_prompt
+
+# POST Route to register a first time user
+@app.post("/auth/register", response_model = UserResponse, status_code = 201)
+def register_user(user_input: UserCreate, db: Session = Depends(get_db)):
+    input_username = user_input.username.strip()
+
+    if not input_username:
+        raise HTTPException(
+            status_code=422,
+            detail="Username cannot be empty"
+        )
+
+    existing_username = (db.query(models.User)
+                         .filter(models.User.username == input_username)
+                         .first())
+
+    if existing_username:
+        raise HTTPException(
+            status_code=409,
+            detail="Username already exists"
+        )
+
+    if (len(user_input.password) < 12):
+        raise HTTPException(
+            status_code=422,
+            detail="Password must be at least 12 characters long"
+        )
+
+    hashed_pwd = hash_password(user_input.password)
+    new_user = models.User(username = input_username, password_hash = hashed_pwd)
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+

@@ -2,11 +2,13 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     false
 )
 from database import Base
+from sqlalchemy.orm import relationship
 import datetime
 
 class Prompt(Base):
@@ -14,9 +16,9 @@ class Prompt(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
+
     category = Column(String)
     content = Column(String)
-    # We add a timestamp so you can sort prompts by newest later!
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     is_pinned = Column(
@@ -29,4 +31,45 @@ class Prompt(Base):
     last_opened_at = Column(
         DateTime(timezone=True),
         nullable=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey(
+            "users.id",
+            ondelete="CASCADE"
+        ),
+        nullable=True
+    )
+
+    owner = relationship(
+        "User",
+        back_populates="prompts"
+    )
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    username = Column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    password_hash = Column(
+        String,
+        nullable=False
+    )
+
+    prompts = relationship(
+        "Prompt",
+        back_populates="owner",
+        cascade="all, delete-orphan"
     )

@@ -39,7 +39,7 @@ class Prompt(Base):
             "users.id",
             ondelete="CASCADE"
         ),
-        nullable=True
+        nullable=False
     )
 
     owner = relationship(

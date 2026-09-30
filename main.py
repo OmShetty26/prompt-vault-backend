@@ -32,34 +32,119 @@ app.add_middleware(
 )
 
 
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated"
+        )
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[ALGORITHM]
+        )
+
+        user_id = payload.get("sub")
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Could not validate credentials"
+            )
+
+        user_id = int(user_id)
+
+    except (jwt.InvalidTokenError, ValueError):
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials"
+        )
+
+    user = (
+        db.query(models.User)
+        .filter(models.User.id == user_id)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials"
+        )
+
+    return user
+
 @app.get("/")
 def root():
     return {"message": "The PromptVault Engine is Online"}
 
 @app.get("/api/prompts")
-def get_prompts(db: Session = Depends(get_db)):
-    response = db.query(models.Prompt).all()
+def get_prompts(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    response = db.query(models.Prompt).filter(models.Prompt.user_id == current_user.id).all()
     return response
 
 # Create a POST route to receive new prompts
 @app.post("/api/prompts")
-def create_prompt(new_prompt: PromptCreate, db: Session = Depends(get_db)):
+def create_prompt(new_prompt: PromptCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if new_prompt.title.strip() == "" or new_prompt.content.strip() == "":
         raise HTTPException(status_code = 400, detail = "Title and Content cannot be empty!")
     print(f"Received a new prompt: {new_prompt.title}")
-    new_db_prompt = models.Prompt(title=new_prompt.title, category=new_prompt.category, content=new_prompt.content)
+    new_db_prompt = models.Prompt(title=new_prompt.title, category=new_prompt.category, content=new_prompt.content, user_id = current_user.id)
     db.add(new_db_prompt)
     db.commit()
     db.refresh(new_db_prompt)
     
     return new_db_prompt
 
-# GET one prompt
-@app.get("/prompt/{prompt_id}")
-def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
+#PUT route to update existing prompts
+@app.put("/prompt/{prompt_id}")
+def update_prompt(
+    prompt_id: int,
+    updated_prompt: PromptCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     db_prompt = (
         db.query(models.Prompt)
-        .filter(models.Prompt.id == prompt_id)
+        .filter(
+            models.Prompt.id == prompt_id,
+            models.Prompt.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if not db_prompt:
+        raise HTTPException(
+            status_code=404,
+            detail="Prompt ID Not Found!"
+        )
+
+    if updated_prompt.title.strip() == "" or updated_prompt.content.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Title and Content cannot be empty!"
+        )
+
+    db_prompt.title = updated_prompt.title
+    db_prompt.category = updated_prompt.category
+    db_prompt.content = updated_prompt.content
+
+    db.commit()
+    db.refresh(db_prompt)
+
+    return db_prompt
+
+# GET one prompt
+@app.get("/prompt/{prompt_id}")
+def get_prompt(prompt_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_prompt = (
+        db.query(models.Prompt)
+        .filter(models.Prompt.id == prompt_id,
+                models.Prompt.user_id == current_user.id)
         .first()
     )
 
@@ -74,11 +159,12 @@ def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
 def update_prompt_pin(
     prompt_id: int,
     update: PromptPinUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     db_prompt = (
         db.query(models.Prompt)
-        .filter(models.Prompt.id == prompt_id)
+        .filter(models.Prompt.id == prompt_id, models.Prompt.user_id == current_user.id)
         .first()
     )
 
@@ -97,11 +183,12 @@ def update_prompt_pin(
 @app.post("/prompt/{prompt_id}/open")
 def open_prompt(
     prompt_id: int,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     db_prompt = (
         db.query(models.Prompt)
-        .filter(models.Prompt.id == prompt_id)
+        .filter(models.Prompt.id == prompt_id, models.Prompt.user_id == current_user.id)
         .first()
     )
 
@@ -120,11 +207,12 @@ def open_prompt(
 @app.delete("/prompt/{prompt_id}")
 def delete_prompt(
     prompt_id: int,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     db_prompt = (
         db.query(models.Prompt)
-        .filter(models.Prompt.id == prompt_id)
+        .filter(models.Prompt.id == prompt_id, models.Prompt.user_id == current_user.id)
         .first()
     )
 
@@ -140,11 +228,12 @@ def delete_prompt(
 def rename_prompt(
     prompt_id: int,
     update: PromptRenameUpdate,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     db_prompt = (
         db.query(models.Prompt)
-        .filter(models.Prompt.id == prompt_id)
+        .filter(models.Prompt.id == prompt_id, models.Prompt.user_id == current_user.id)
         .first()
     )
 
@@ -238,52 +327,6 @@ def login_user(user_input: UserLogin, response: Response, db: Session = Depends(
     return db_user
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
-
-    if not token:
-        raise HTTPException(
-            status_code=401,
-            detail="Not authenticated"
-        )
-
-    try:
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=[ALGORITHM]
-        )
-
-        user_id = payload.get("sub")
-
-        if user_id is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Could not validate credentials"
-            )
-
-        user_id = int(user_id)
-
-    except (jwt.InvalidTokenError, ValueError):
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials"
-        )
-
-    user = (
-        db.query(models.User)
-        .filter(models.User.id == user_id)
-        .first()
-    )
-
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials"
-        )
-
-    return user
-
 # GET currently authenticated user
 @app.get("/auth/me", response_model=UserResponse)
 def get_me(
@@ -293,7 +336,7 @@ def get_me(
 
 
 @app.post("/auth/logout")
-def logout_user(response: Response):
+def logout_user(response: Response, current_user: models.User = Depends(get_current_user)):
     response.delete_cookie(
         key="access_token",
         path="/"

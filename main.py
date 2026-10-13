@@ -78,7 +78,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
 
     return user
 
-@app.get("/")
+@app.get("/home")
 def root():
     return {"message": "The PromptVault Engine is Online"}
 

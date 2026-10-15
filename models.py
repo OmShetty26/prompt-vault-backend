@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from database import Base
 from sqlalchemy.orm import relationship
-import datetime
+from datetime import datetime, timezone
 
 class Prompt(Base):
     __tablename__ = "prompts"
@@ -19,7 +19,11 @@ class Prompt(Base):
 
     category = Column(String)
     content = Column(String)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 
     is_pinned = Column(
         Boolean,

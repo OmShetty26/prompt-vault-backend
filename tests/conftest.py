@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 import models  # Ensure model tables are registered with Base.metadata
 from database import Base, get_db
 from main import app
+from tests.helpers import register_and_login
 
 
 # An in-memory SQLite database shared across connections.
@@ -56,3 +57,9 @@ def client(db_session):
             yield test_client
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+
+@pytest.fixture
+def authenticated_user(client):
+    return register_and_login(client)

@@ -18,9 +18,7 @@ from config import settings
 app = FastAPI()
 
 # 2. Define who is allowed to talk to this API
-origins = [
-    "http://localhost:5173", # Your React app
-]
+origins = [settings.frontend_url]
 
 # 3. Add the CORS middleware to your engine
 app.add_middleware(
@@ -319,8 +317,8 @@ def login_user(user_input: UserLogin, response: Response, db: Session = Depends(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite=settings.cookie_samesite,
+        secure=settings.is_production,
         max_age=30 * 60
     )
 

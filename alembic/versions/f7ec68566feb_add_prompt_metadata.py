@@ -1,7 +1,7 @@
 """add prompt metadata
 
 Revision ID: f7ec68566feb
-Revises: 
+Revises: c4b1a72e9d60
 Create Date: 2026-09-19 14:42:08.115684
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'f7ec68566feb'
-down_revision: Union[str, Sequence[str], None] = None
+down_revision: Union[str, Sequence[str], None] = "c4b1a72e9d60"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
